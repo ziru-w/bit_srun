@@ -1,11 +1,10 @@
-#!/usr/bin/env python
-# -*-coding:utf-8-*-
 
 import base64
 import hashlib
 import hmac
 import json
 import os
+import sys
 import time
 import re
 import requests
@@ -87,12 +86,13 @@ def get_json(url, data):
 
     response = requests.get(url, data)
     response_content = response.content.decode('utf-8')[len(callback)+1:-1]
+    print(response_content)
     response_json = json.loads(response_content)
 
     return response_json
 
 
-def srun_login(username, password=None, action='login'):
+def srun_login(username, password=None, action='login',serviceIp=''):
     '''srun login and logout
     Args:
         username: username
@@ -159,15 +159,17 @@ def srun_login(username, password=None, action='login'):
     enc = "srun_bx1"
     n = 200
     type_ = 1
-    get_challenge_url = "http://10.0.0.55/cgi-bin/get_challenge"
-    srun_portal_url = "http://10.0.0.55/cgi-bin/srun_portal"
+    get_challenge_url = "http://{}/cgi-bin/get_challenge".format(serviceIp)
+    srun_portal_url = "http://{}/cgi-bin/srun_portal".format(serviceIp)
     url = 'http://detectportal.firefox.com/success.txt'
     #Check if Redirect, when not, set to default
     try:
         r = requests.get(url, timeout=0.1)
         ac_id=re.findall(r'index_(\d*).html',r.url)[0]
     except requests.exceptions.Timeout:
-            ac_id=1
+        ac_id=1
+    except IndexError:
+        ac_id=1
     if not ac_id:
         ac_id=1
     ac_id=str(ac_id)
@@ -222,11 +224,43 @@ def srun_login(username, password=None, action='login'):
         print("%s failed.\n%s %s" % (action, res['error'], res['error_msg']))
 
     return res
+def app_path():
+    """Returns the base application path."""
+    if hasattr(sys, 'frozen'):
+        # Handles PyInstaller
+        return os.path.dirname(sys.executable)  #使用pyinstaller打包后的exe目录
+    return os.path.dirname(__file__)                 #没打包前的py目录
 
-
+def configInit():
+    configPath=app_path()+"/config.json"
+    if not os.path.exists(configPath):
+        config={"username":"必填项","password":"必填项","action":"login","serviceIp":"必填项","useConfig":"1"}
+        with open(configPath,'w',encoding='utf-8') as fp:
+            json.dump(config,fp,ensure_ascii=False)
+        help='''初始化完毕，请按要求填写信息\nserviceIp为服务器Ip,大概每个学校不一样,必填项,由抓包获取,action是登录登出,填login、logout,填其他的运行时会要求手动输入\n以上信息在已生成的config.json文件中,按任意键退出去修改此文件'''
+        input(help)
+        with open(app_path()+"/help.txt",'w',encoding='utf-8') as fp:
+            fp.write(help)
+        1/0
+    with open(app_path()+'/config.json','r',encoding='utf-8') as fp:
+        config=json.loads(fp.read())
+    return config
 if __name__ == "__main__":
-    username = "username"
-    password = "password"
-
-    srun_login(username, password)
-#srun_login(username, action="logout")
+    config=configInit()
+    if config["useConfig"]=='0':
+        username=input('username:')
+        password=input('password:')
+        serviceIp=input('serviceIp:')
+        action=input('action:')
+    else:
+        username = config['username']
+        password = config['password']
+        serviceIp=config['serviceIp']
+        action=config["action"]
+        if action not in ['login', 'logout']:
+            action=input('请输入(input)action:')
+    try:
+        srun_login(username, password,action,serviceIp)
+        input("按任意键并回车(确定)继续...")
+    except Exception as res:
+        print(res)
