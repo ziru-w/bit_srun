@@ -261,6 +261,6 @@ if __name__ == "__main__":
             action=input('请输入(input)action:')
     try:
         srun_login(username, password,action,serviceIp)
-        input("按任意键并回车(确定)继续...")
     except Exception as res:
         print(res)
+    input("按任意键并回车(确定)继续...")
