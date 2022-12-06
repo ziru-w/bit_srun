@@ -164,11 +164,15 @@ def srun_login(username, password=None, action='login',serviceIp=''):
     url = 'http://detectportal.firefox.com/success.txt'
     #Check if Redirect, when not, set to default
     try:
-        r = requests.get(url, timeout=0.1)
-        ac_id=re.findall(r'index_(\d*).html',r.url)[0]
+        r = requests.get(url, timeout=0.01)
+        print(r.url)
+        ac_id=re.findall(r'ac_id=([0-9]+?)',r.url)[0]
     except requests.exceptions.Timeout:
         ac_id=1
     except IndexError:
+        ac_id=1
+    except Exception as res:
+        print(res)
         ac_id=1
     if not ac_id:
         ac_id=1
@@ -222,7 +226,7 @@ def srun_login(username, password=None, action='login',serviceIp=''):
         print('%s success.' % action)
     else:
         print("%s failed.\n%s %s" % (action, res['error'], res['error_msg']))
-
+    print('ip:{}\n用户名:{}\n状态:{}'.format(get_data['ip'],get_data['username'],get_data['action']))
     return res
 def app_path():
     """Returns the base application path."""
@@ -245,7 +249,8 @@ def configInit():
     with open(app_path()+'/config.json','r',encoding='utf-8') as fp:
         config=json.loads(fp.read())
     return config
-if __name__ == "__main__":
+
+def main():
     config=configInit()
     if config["useConfig"]=='0':
         username=input('username:')
@@ -258,9 +263,23 @@ if __name__ == "__main__":
         serviceIp=config['serviceIp']
         action=config["action"]
         if action not in ['login', 'logout']:
-            action=input('请输入(input)action:')
-    try:
-        srun_login(username, password,action,serviceIp)
-    except Exception as res:
-        print(res)
-    input("按任意键并回车(确定)继续...")
+            action=input('请输入(input)action(1or0):')
+            if action=='0':
+                action="logout"
+            else:
+                action="login"
+    while(action!="exit"):
+        try:
+            srun_login(username, password,action,serviceIp)
+        except Exception as res:
+            print(res)
+        action=input("请输入(input)action(1or0)或者按其他键并回车结束:")
+        if action not in ['login', 'logout']:
+            if action=='0':
+                action="logout"
+            elif action=='1':
+                action="login"
+            else:
+                action="exit"
+if __name__ == "__main__":
+    main()
